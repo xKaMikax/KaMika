@@ -1,12 +1,14 @@
+
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Проекты — NightStudio</title>
-  <meta name="description" content="Список проектов NightStudio.">
-  <link rel="icon" href="../favicon.svg">
-  <link rel="stylesheet" href="../style.css">
+  <meta name="description" content="Динамический список проектов на основе архивов из /projects и описаний из /info.">
+  <link rel="icon" href="favicon.svg">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="container">
@@ -14,25 +16,145 @@
       <div class="brand"><a href="/">NightStudio</a></div>
       <nav class="nav">
         <a href="/">Главная</a>
-        <a href="/projects/">Проекты</a>
+        <a href="/projects.html">Проекты</a>
       </nav>
     </header>
 
-    <section class="section">
-      <h1>Проекты</h1>
-      <p class="subtitle">Все проекты находятся в этом разделе. Сейчас доступен один проект.</p>
-      <div class="grid">
-        <div class="card">
-          <div class="status wip">В РАБОТЕ</div>
-          <h3><a href="/projects/launcher.html">Minecraft Node Launcher</a></h3>
-          <p>Лёгкий лаунчер на Node.js. Оффлайн‑режим, выбор Java 21. Планируется поддержка Fabric/Quilt/Forge/NeoForge.</p>
-        </div>
+    <section class="hero">
+      <h1>Проекты NightStudio</h1>
+      <p class="subtitle">Берём архивы из каталога <span class="kbd">/projects</span> (ZIP/RAR/7Z/TAR.GZ). Если есть описание в <span class="kbd">/info/&lt;имя&gt;.html</span> — показываем кнопку «Посмотреть описание».</p>
+      <div class="center">
+        <a class="btn" href="#" id="refreshBtn">Обновить</a>
+        <span class="small" id="lastUpdated">Последнее обновление: никогда</span>
       </div>
     </section>
 
-    <footer class="footer">
-      © 2025 NightStudio
-    </footer>
+    <section class="section">
+      <div class="center" id="loading">
+        <div class="loader"></div>
+        <span class="small">Загрузка проектов...</span>
+      </div>
+      <div class="grid" id="grid" style="display:none"></div>
+      <div class="error" id="errorBox" style="display:none"></div>
+    </section>
+
+    <footer class="footer">© 2025 NightStudio</footer>
   </div>
+
+  <script>
+  // ---- Настройка под ваш репозиторий ----
+  const OWNER = "xKaMikax";           // ← поменяйте
+  const REPO  = "KaMika";  // ← поменяйте
+  const BRANCH_MAIN = "main";            // или "master"
+  const ARCHIVES_PATH = "projects";      // папка с архивами
+  const INFO_PATH = "info";              // папка с HTML описаниями
+  // --------------------------------------
+
+  const elGrid = document.getElementById('grid');
+  const elLoad = document.getElementById('loading');
+  const elErr  = document.getElementById('errorBox');
+  const elLast = document.getElementById('lastUpdated');
+  const elRefresh = document.getElementById('refreshBtn');
+
+  function sizeFmt(bytes){
+    if(bytes < 1024) return bytes + " B";
+    if(bytes < 1024*1024) return (bytes/1024).toFixed(1) + " KB";
+    if(bytes < 1024*1024*1024) return (bytes/1024/1024).toFixed(1) + " MB";
+    return (bytes/1024/1024/1024).toFixed(2) + " GB";
+  }
+
+  async function fetchJSON(url){
+    const r = await fetch(url, {headers:{"Accept":"application/vnd.github+json"}, cache:"no-store"});
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    return await r.json();
+  }
+
+  async function listArchives(){
+    const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${ARCHIVES_PATH}`;
+    const items = await fetchJSON(url);
+    const exts = [".zip",".rar",".7z",".tar.gz",".tgz"];
+    function hasExt(name){
+      return exts.some(e => name.toLowerCase().endsWith(e));
+    }
+    return items.filter(x => x.type === "file" && hasExt(x.name));
+  }
+
+  async function infoExists(name){
+    const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${INFO_PATH}/${name}.html`;
+    try{
+      const r = await fetch(url, {method:"GET", headers:{"Accept":"application/vnd.github+json"}, cache:"no-store"});
+      if(r.ok) return true;
+    }catch{}
+    try{
+      const h = await fetch(`/${INFO_PATH}/${name}.html`, {method:"HEAD", cache:"no-store"});
+      if(h.ok) return true;
+    }catch{}
+    return false;
+  }
+
+  function baseName(name){
+    const lowers = name.toLowerCase();
+    if(lowers.endsWith(".tar.gz")) return name.slice(0, -7);
+    if(lowers.endsWith(".tgz"))    return name.slice(0, -4);
+    const i = name.lastIndexOf(".");
+    return i>0 ? name.slice(0,i) : name;
+  }
+
+  function titleCase(s){
+    return s.replace(/[-_]/g," ").replace(/\b\w/g, m => m.toUpperCase());
+  }
+
+  function renderItem(file, hasInfo){
+    const name = file.name;
+    const bn = baseName(name);
+    const title = titleCase(bn);
+    const rawUrl = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH_MAIN}/${ARCHIVES_PATH}/${encodeURIComponent(name)}`;
+    const ghUrl  = `https://github.com/${OWNER}/${REPO}/blob/${BRANCH_MAIN}/${ARCHIVES_PATH}/${encodeURIComponent(name)}`;
+    const infoUrl = `/info/${bn}.html`;
+
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <h3>${title}</h3>
+      <p>Архив: <span class="kbd">${name}</span> · Размер: <span class="kbd">${sizeFmt(file.size)}</span></p>
+      <div class="btnrow">
+        <a class="btn" href="${rawUrl}" target="_blank">Скачать архив</a>
+        <a class="btn" href="${ghUrl}" target="_blank">Посмотреть на GitHub</a>
+        ${hasInfo ? `<a class="btn" href="${infoUrl}">Посмотреть описание</a>` : ""}
+      </div>
+    `;
+    return card;
+  }
+
+  async function load(){
+    elErr.style.display = "none";
+    elGrid.style.display = "none";
+    elLoad.style.display = "flex";
+    try{
+      const files = await listArchives();
+      if(!files.length){
+        elGrid.innerHTML = '<div class="card"><h3>Пока нет архивов</h3><p>Добавьте файлы в /projects (*.zip, *.rar, *.7z, *.tar.gz, *.tgz).</p></div>';
+      } else {
+        elGrid.innerHTML = "";
+        const checks = await Promise.all(
+          files.map(async f => ({ file: f, hasInfo: await infoExists(baseName(f.name)) }))
+        );
+        for(const it of checks){
+          elGrid.appendChild(renderItem(it.file, it.hasInfo));
+        }
+      }
+      elGrid.style.display = "grid";
+      elLoad.style.display = "none";
+      elLast.textContent = `Последнее обновление: ${new Date().toLocaleString()}`;
+    }catch(e){
+      elLoad.style.display = "none";
+      elErr.style.display = "block";
+      elErr.innerHTML = `<strong>Ошибка:</strong> ${e.message}<br><span class="small">Проверьте OWNER/REPO/BRANCH_MAIN и наличие архивов в /projects.</span>`;
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", load);
+  document.getElementById("refreshBtn").addEventListener("click", (e)=>{ e.preventDefault(); load(); });
+  </script>
 </body>
 </html>
