@@ -1,0 +1,57 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Описание — Minecraft Node Launcher</title>
+  <meta name="description" content="Описание проекта лаунчера Minecraft (Node.js)">
+  <link rel="icon" href="favicon.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="brand"><a href="/">NightStudio</a></div>
+      <nav class="nav">
+        <a href="/">Главная</a>
+        <a href="/projects.html">Проекты</a>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <h1>Описание проекта: Minecraft Node Launcher</h1>
+      <p class="subtitle">Лаунчер для Minecraft на Node.js: оффлайн‑режим, кастомная Java, план поддержки Fabric/Quilt/Forge/NeoForge.</p>
+    </section>
+
+    <section class="section">
+      <div class="grid">
+        <div class="card">
+          <h3>Цели</h3>
+          <ul>
+            <li>Запуск MC 1.21.1 с выбором Java 21 (<span class="kbd">javaw.exe</span>).</li>
+            <li>Проверка/докачка ассетов и библиотек.</li>
+            <li>Поддержка модлоадеров (поэтапно).</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>CLI‑пример</h3>
+          <p class="kbd">node launcher.js --dir "D:\.minecraft" --version 1.21.1 --ram 4G --offline KaMikaYT --java "E:\Portable\java\bin\javaw.exe"</p>
+        </div>
+        <div class="card">
+          <h3>План работ</h3>
+          <ul>
+            <li>Fabric/Quilt — загрузка профиля, инсталляция, хук JVM аргументов.</li>
+            <li>Forge/NeoForge — поддержка инсталляторов, кеш библиотек.</li>
+            <li>GUI‑шаг: минимальное окно конфигурации.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      © 2025 NightStudio · Последнее обновление: 2025-08-31 10:03
+    </footer>
+  </div>
+</body>
+</html>
